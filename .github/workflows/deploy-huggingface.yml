@@ -22,10 +22,9 @@ jobs:
     steps:
       - name: Check deployment configuration
         env:
-          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID || 'Deep712sharma/P2P' }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          test -n "$HF_SPACE_ID" || { echo "Set the HF_SPACE_ID repository variable to namespace/space-name."; exit 1; }
           test -n "$HF_TOKEN" || { echo "Add a write-scoped Hugging Face token as the HF_TOKEN repository secret."; exit 1; }
 
       - uses: actions/checkout@v6
@@ -37,7 +36,7 @@ jobs:
         uses: huggingface/hub-sync@v0.3.0
         with:
           github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: ${{ vars.HF_SPACE_ID }}
+          huggingface_repo_id: ${{ vars.HF_SPACE_ID || 'Deep712sharma/P2P' }}
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: space
           space_sdk: docker

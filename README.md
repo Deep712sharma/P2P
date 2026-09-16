@@ -168,12 +168,12 @@ repository to a Docker Space; each mirrored commit triggers the Space rebuild.
 
 Complete this one-time configuration before the first push:
 
-1. In GitHub, open **Settings → Secrets and variables → Actions → Variables**
-   and add `HF_SPACE_ID` with the exact target identifier,
-   `<HF_NAMESPACE>/<SPACE_NAME>` (for example, `your-account/paper-to-ppt`).
-   Create the Space in Hugging Face first if you want to choose its visibility
-   and hardware; otherwise the sync action creates a Docker Space on its first
-   successful run.
+1. The default target is `Deep712sharma/P2P`. To deploy to a differently named
+   Space, add the optional GitHub Actions variable `HF_SPACE_ID` in
+   **Settings → Secrets and variables → Actions → Variables**, using the exact
+   `<HF_NAMESPACE>/<SPACE_NAME>` identifier. Create the Space first if you want
+   to choose its visibility and hardware; otherwise the sync action creates a
+   Docker Space on its first successful run.
 2. Create a Hugging Face **fine-grained write token** scoped only to that Space.
    In GitHub **Actions secrets**, save it as `HF_TOKEN`. It is deliberately a
    secret, never a repository variable or checked-in file.
