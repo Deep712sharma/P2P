@@ -17,8 +17,11 @@ load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
-FALLBACK_MODEL = "llama-3.1-8b-instant"
+# DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# FALLBACK_MODEL = "llama-3.1-8b-instant"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
+
+FALLBACK_MODEL = "openai/gpt-oss-20b"
 
 def _call_groq_with_fallback(messages, model, temperature, max_tokens):
     try:

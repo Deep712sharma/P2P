@@ -37,7 +37,7 @@ PaperToPpt/
 
 Get your free key at https://console.groq.com, then edit `backend/.env`:
 ```
-GROQ_API_KEY=gsk_your-groq-api-key-here
+GROQ_API_KEY=gsk_your-groq-api-key-here 
 ```
 
 ### 2. Start the backend (Terminal 1)

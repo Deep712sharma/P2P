@@ -12,7 +12,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environments
+# Python virtual environments
 .venv/
 venv/
 env/
@@ -21,11 +21,9 @@ ENV/
 # Python packaging
 *.egg
 *.egg-info/
-dist/
 build/
-pip-wheel-metadata/
 
-# Test / coverage
+# Testing / coverage
 .pytest_cache/
 .coverage
 .coverage.*
@@ -34,15 +32,10 @@ htmlcov/
 .nox/
 
 # ============================================================
-# Project-generated files
+# Project generated files
 # ============================================================
 uploads/
 outputs/
-
-# Generated PowerPoint / PDF files
-*.pptx
-*.ppt
-*.pdf
 
 # ============================================================
 # Logs
@@ -60,16 +53,12 @@ lerna-debug.log*
 # Node / React / Vite
 # ============================================================
 node_modules/
-frontend/node_modules/
-
 dist/
 dist-ssr/
-frontend/dist/
-
 *.local
 
 # ============================================================
-# Editor directories and files
+# IDE
 # ============================================================
 .vscode/*
 !.vscode/extensions.json
@@ -84,7 +73,7 @@ frontend/dist/
 *.sw?
 
 # ============================================================
-# OS files
+# OS
 # ============================================================
 Thumbs.db
 Desktop.ini
