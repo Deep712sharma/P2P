@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef } from 'react'
 import './App.css'
 
-const API = 'http://localhost:8000'
+// Docker/Spaces serves the SPA and API from one origin. During `npm run dev`,
+// Vite proxies /api to FastAPI; VITE_API_BASE_URL can override either setup.
+const API = (import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? '/api' : '')).replace(/\/$/, '')
 
 // ── Step icons ─────────────────────────────────────────────────────────────
 const STEPS = [

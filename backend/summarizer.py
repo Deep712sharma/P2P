@@ -10,20 +10,29 @@ Model: llama-3.3-70b-versatile (free via Groq)
 import os
 import re
 import json
+from pathlib import Path
 from groq import Groq
 from dotenv import load_dotenv
 
-load_dotenv()
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# This supports the documented local backend/.env file. In Docker and Spaces,
+# the platform injects the same setting as a runtime environment variable.
+load_dotenv(Path(__file__).with_name(".env"))
 
 # DEFAULT_MODEL = "llama-3.3-70b-versatile"
 # FALLBACK_MODEL = "llama-3.1-8b-instant"
-DEFAULT_MODEL = "openai/gpt-oss-120b"
+DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "openai/gpt-oss-20b")
 
-FALLBACK_MODEL = "openai/gpt-oss-20b"
+
+def _get_client() -> Groq:
+    """Create a client only when a request needs it and a key is available."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("GROQ_API_KEY is not configured.")
+    return Groq(api_key=api_key)
 
 def _call_groq_with_fallback(messages, model, temperature, max_tokens):
+    client = _get_client()
     try:
         return client.chat.completions.create(
             model=model,

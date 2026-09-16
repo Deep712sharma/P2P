@@ -1,0 +1,48 @@
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The workflow only needs to read this repository. Publishing is authorized by
+# the fine-grained Hugging Face token stored in the HF_TOKEN repository secret.
+permissions:
+  contents: read
+
+# A Space rebuild can take several minutes. Cancel a superseded deployment so
+# only the newest main-branch commit is ultimately deployed.
+concurrency:
+  group: huggingface-space-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployment configuration
+        env:
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          test -n "$HF_SPACE_ID" || { echo "Set the HF_SPACE_ID repository variable to namespace/space-name."; exit 1; }
+          test -n "$HF_TOKEN" || { echo "Add a write-scoped Hugging Face token as the HF_TOKEN repository secret."; exit 1; }
+
+      - uses: actions/checkout@v6
+
+      # hub-sync creates the Space if it does not exist and mirrors this
+      # repository thereafter. Generated PDFs/PPTX files must never be copied
+      # to the public deployment (and would otherwise require Git LFS).
+      - name: Sync and deploy Docker Space
+        uses: huggingface/hub-sync@v0.3.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: ${{ vars.HF_SPACE_ID }}
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: space
+          space_sdk: docker
+          exclude: |
+            *.env
+            uploads/
+            outputs/
+            data/

@@ -6,6 +6,7 @@ import os
 import sys
 import uuid
 import shutil
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
@@ -21,16 +22,19 @@ from section_detector import detect_sections
 from summarizer import summarize_all_sections
 from slide_planner import build_slide_plan
 from ppt_generator import generate_pptx
+from config import settings
 
 # ─────────────────────────────────────────────────────────────────────────────
 # App setup
 # ─────────────────────────────────────────────────────────────────────────────
 
-BASE_DIR    = Path(__file__).parent.parent
-UPLOAD_DIR  = BASE_DIR / "uploads"
-OUTPUT_DIR  = BASE_DIR / "outputs"
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = settings.upload_dir
+OUTPUT_DIR = settings.output_dir
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+logger = logging.getLogger(__name__)
+VALID_THEMES = {"dark", "light", "nature", "sunset"}
 
 app = FastAPI(
     title="PaperToPpt API",
@@ -40,8 +44,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -108,17 +112,19 @@ def _run_pipeline(job_id: str, pdf_path: str, theme: str = "dark"):
         jobs[job_id]["slide_count"] = len(slide_plan)
         jobs[job_id]["title"]       = extracted["title"]
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Pipeline failed for job %s", job_id)
         jobs[job_id]["status"]  = "error"
-        jobs[job_id]["message"] = str(e)
+        jobs[job_id]["message"] = "Processing failed. Check the server logs for details."
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.get("/")
+@app.get("/healthz")
 def health():
+    """Unauthenticated health endpoint for local and platform checks."""
     return {"status": "ok", "service": "PaperToPpt API v1.0"}
 
 
@@ -128,17 +134,41 @@ async def upload_pdf(
     file: UploadFile = File(...),
     theme: str = Form("dark"),
 ):
-    if not file.filename.lower().endswith(".pdf"):
+    filename = Path(file.filename or "").name
+    if not filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
+    if theme not in VALID_THEMES:
+        raise HTTPException(status_code=400, detail="Unsupported presentation theme.")
+    if not os.getenv("GROQ_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="GROQ_API_KEY is not configured on the server.",
+        )
 
     job_id   = str(uuid.uuid4())
     job_dir  = UPLOAD_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = str(job_dir / file.filename)
+    pdf_path = job_dir / filename
 
-    # Save uploaded file
-    with open(pdf_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    # Stream to disk so clients cannot bypass the advertised upload-size limit.
+    bytes_written = 0
+    try:
+        with pdf_path.open("wb") as destination:
+            while chunk := await file.read(1024 * 1024):
+                bytes_written += len(chunk)
+                if bytes_written > settings.max_upload_size_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=(
+                            f"PDF exceeds the {settings.max_upload_size_mb} MB upload limit."
+                        ),
+                    )
+                destination.write(chunk)
+    except Exception:
+        shutil.rmtree(job_dir, ignore_errors=True)
+        raise
+    finally:
+        await file.close()
 
     # Init job record
     jobs[job_id] = {
@@ -149,7 +179,7 @@ async def upload_pdf(
     }
 
     # Start pipeline in background
-    background_tasks.add_task(_run_pipeline, job_id, pdf_path, theme)
+    background_tasks.add_task(_run_pipeline, job_id, str(pdf_path), theme)
 
     return JSONResponse({"job_id": job_id, "message": "Upload successful. Processing started."})
 
@@ -183,4 +213,15 @@ def download_pptx(job_id: str):
         path=pptx_path,
         filename=job["filename"],
         media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
+
+
+# The Docker image supplies this directory after compiling the Vite frontend.
+# Keeping the mount optional preserves the existing two-process Vite workflow
+# for local development without requiring a pre-built frontend.
+if settings.frontend_dist_dir.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=settings.frontend_dist_dir, html=True),
+        name="frontend",
     )
